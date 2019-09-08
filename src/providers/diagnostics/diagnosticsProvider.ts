@@ -1,9 +1,11 @@
 import { Diagnostic, IConnection, TextDocument } from "vscode-languageserver";
 import { URI } from "vscode-uri";
+import { IForest } from "../../forest";
 import { ElmAnalyseTrigger, Settings } from "../../util/settings";
 import { TextDocumentEvents } from "../../util/textDocumentEvents";
 import { ElmAnalyseDiagnostics } from "./elmAnalyseDiagnostics";
 import { ElmMakeDiagnostics } from "./elmMakeDiagnostics";
+import { TreeSitterDiagnostics } from "./treeSitterDiagnostics";
 
 export interface IElmIssueRegion {
   start: { line: number; column: number };
@@ -23,10 +25,12 @@ export interface IElmIssue {
 export class DiagnosticsProvider {
   private elmMakeDiagnostics: ElmMakeDiagnostics;
   private elmAnalyseDiagnostics: ElmAnalyseDiagnostics | null;
+  private treeSitterDiagnostics: TreeSitterDiagnostics;
   private currentDiagnostics: {
     elmMake: Map<string, Diagnostic[]>;
     elmAnalyse: Map<string, Diagnostic[]>;
     elmTest: Map<string, Diagnostic[]>;
+    treeSitter: Map<string, Diagnostic[]>;
   };
 
   constructor(
@@ -36,15 +40,18 @@ export class DiagnosticsProvider {
     private events: TextDocumentEvents,
     elmAnalyse: ElmAnalyseDiagnostics | null,
     elmMake: ElmMakeDiagnostics,
+    treeSitter: TreeSitterDiagnostics,
   ) {
     this.newElmAnalyseDiagnostics = this.newElmAnalyseDiagnostics.bind(this);
     this.elmMakeDiagnostics = elmMake;
     this.elmAnalyseDiagnostics = elmAnalyse;
+    this.treeSitterDiagnostics = treeSitter;
 
     this.currentDiagnostics = {
       elmAnalyse: new Map(),
       elmMake: new Map(),
       elmTest: new Map(),
+      treeSitter: new Map(),
     };
 
     // register onChange listener if settings are not on-save only
@@ -95,6 +102,13 @@ export class DiagnosticsProvider {
       }
     }
 
+    for (const [uri, diagnostics] of this.currentDiagnostics.treeSitter) {
+      allDiagnostics.set(
+        uri,
+        (allDiagnostics.get(uri) || []).concat(diagnostics),
+      );
+    }
+
     for (const [uri, diagnostics] of allDiagnostics) {
       this.connection.sendDiagnostics({ uri, diagnostics });
     }
@@ -120,6 +134,10 @@ export class DiagnosticsProvider {
           uri,
         );
       }
+
+      this.currentDiagnostics.treeSitter = await this.treeSitterDiagnostics.createDiagnostics(
+        uri,
+      );
 
       const elmMakeDiagnosticsForCurrentFile = this.currentDiagnostics.elmMake.get(
         uri.toString(),

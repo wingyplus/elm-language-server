@@ -16,6 +16,7 @@ import { DefinitionProvider } from "./providers/definitionProvider";
 import { DiagnosticsProvider } from "./providers/diagnostics/diagnosticsProvider";
 import { ElmAnalyseDiagnostics } from "./providers/diagnostics/elmAnalyseDiagnostics";
 import { ElmMakeDiagnostics } from "./providers/diagnostics/elmMakeDiagnostics";
+import { TreeSitterDiagnostics } from "./providers/diagnostics/treeSitterDiagnostics";
 import { DocumentFormattingProvider } from "./providers/documentFormatingProvider";
 import { DocumentSymbolProvider } from "./providers/documentSymbolProvider";
 import { FoldingRangeProvider } from "./providers/foldingProvider";
@@ -108,6 +109,12 @@ export class ElmWorkspace {
       this.settings,
     );
 
+    const treeSitter = new TreeSitterDiagnostics(
+      this.connection,
+      this.elmWorkspace,
+      this.forest,
+    );
+
     // tslint:disable:no-unused-expression
     new DiagnosticsProvider(
       this.connection,
@@ -116,6 +123,7 @@ export class ElmWorkspace {
       this.textDocumentEvents,
       elmAnalyse,
       elmMake,
+      treeSitter,
     );
 
     new CodeActionProvider(this.connection, elmAnalyse, elmMake);
