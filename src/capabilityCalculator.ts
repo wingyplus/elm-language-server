@@ -18,6 +18,8 @@ export class CapabilityCalculator {
     this.clientCapabilities;
 
     return {
+      // Perform incremental syncs
+      textDocumentSync: TextDocumentSyncKind.Incremental,
       codeActionProvider: true,
       codeLensProvider: {
         resolveProvider: true,
@@ -40,7 +42,6 @@ export class CapabilityCalculator {
       referencesProvider: true,
       renameProvider: true,
       selectionRangeProvider: true,
-      textDocumentSync: TextDocumentSyncKind.Full,
       workspaceSymbolProvider: true,
     };
   }

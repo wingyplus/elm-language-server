@@ -7,10 +7,24 @@ import {
   TextDocumentsConfiguration,
 } from "vscode-languageserver";
 import { IDocumentEvents } from "./documentEvents";
+import { TextDocument } from "vscode-languageserver-textdocument";
+
+export type DidChangeCallback = (document: TextDocument) => void;
+export type DidCloseCallback = (document: TextDocument) => void;
+export type DidOpenCallback = (document: TextDocument) => void;
+export type DidSaveCallback = (document: TextDocument) => void;
+
+export interface ITextDocumentEvents {
+  on(event: "change", listener: DidChangeCallback): this;
+  on(event: "close", listener: DidCloseCallback): this;
+  on(event: "open", listener: DidOpenCallback): this;
+  on(event: "save", listener: DidSaveCallback): this;
+}
 
 // This is loosely based on https://github.com/Microsoft/vscode-languageserver-node/blob/73180893ca/server/src/main.ts#L124
 // With some simplifications and the ability to support multiple listeners
-export class TextDocumentEvents<T> extends EventEmitter {
+export class TextDocumentEvents<T> extends EventEmitter
+  implements ITextDocumentEvents {
   // a single store of documents shared by all workspaces
   private _documents: { [uri: string]: T };
   private _configuration: TextDocumentsConfiguration<T>;

@@ -183,7 +183,7 @@ export class Server implements ILanguageServer {
     new ASTProvider(
       this.connection,
       this.elmWorkspaces,
-      documentEvents,
+      textDocumentEvents,
       this.parser,
     );
     new FoldingRangeProvider(this.connection, this.elmWorkspaces);
