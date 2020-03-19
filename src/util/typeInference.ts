@@ -57,7 +57,7 @@ type Substitution = {
   [key: string]: Type;
 };
 
-function typeToString(t: Type): any {
+function typeToString(t: Type): string {
   switch (t.nodeType) {
     case "Named":
     case "Var":
@@ -195,35 +195,6 @@ function inferLet(ctx: Context, expr: ELet): [Type, Substitution] {
   return [bodyType, s3];
 }
 
-type FreeVars = {
-  [name: string]: true;
-};
-
-function union(a: FreeVars, b: FreeVars): FreeVars {
-  return { ...a, ...b };
-}
-
-function difference(a: FreeVars, b: FreeVars): FreeVars {
-  const result = { ...a };
-  for (const name in b) {
-    if (result[name]) {
-      delete result[name];
-    }
-  }
-  return result;
-}
-
-function freeTypeVarsInType(t: Type): FreeVars {
-  switch (t.nodeType) {
-    case "Named":
-      return {};
-    case "Var":
-      return { [t.name]: true };
-    case "Function":
-      return union(freeTypeVarsInType(t.from), freeTypeVarsInType(t.to));
-  }
-}
-
 function inferFunction(ctx: Context, e: EFunc): [Type, Substitution] {
   const newType = newTVar(ctx);
   const newCtx = addToContext(ctx, e.param, newType);
@@ -252,7 +223,6 @@ function inferIf(ctx: Context, e: EIf): [Type, Substitution] {
   const trueBranchType = applySubstToType(s5, _trueBranchType);
   const falseBranchType = applySubstToType(s5, _falseBranchType);
   const s6 = unify(trueBranchType, falseBranchType);
-  const resultSubst = composeSubst(s5, s6);
   return [applySubstToType(s6, trueBranchType), s6];
 }
 
