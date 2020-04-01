@@ -1,6 +1,6 @@
-import { infer, typeToString, Expression, Type, EFunc } from "./typeInference";
 import * as Path from "path";
 import Parser, { SyntaxNode } from "web-tree-sitter";
+import { Expression, infer, Type, typeToString } from "./typeInference";
 
 const initialEnv = {
   True: tnamed("Bool"),
@@ -55,6 +55,23 @@ describe("test type inference", () => {
     );
     const inferredToString = typeToString(inferred[0]);
     expect(inferredToString).toEqual("Int");
+  });
+
+  test("simple function with params", () => {
+    const tree = parser.parse(`func a b = a + b`);
+
+    const mapped = mapSyntaxNodeToTypeTree(tree.rootNode);
+    if (!mapped) throw new Error("Mapping failed");
+
+    const inferred = infer(
+      {
+        next: 0,
+        env: initialEnv,
+      },
+      mapped,
+    );
+    const inferredToString = typeToString(inferred[0]);
+    expect(inferredToString).toEqual("Int -> Int -> Int");
   });
 
   test("simple int", () => {
@@ -246,10 +263,11 @@ function mapSyntaxNodeToTypeTree(
         if (eqNodeIndex === 1) {
           return e(body);
         } else {
-          const params = node.namedChildren.splice(1, eqNodeIndex);
+          const params = node.namedChildren
+            .splice(1, eqNodeIndex)
+            .map((a) => a.text);
           if (params) {
-            //todo [0] is not correct
-            return func(params[0].text, body);
+            return curryFunction(params, body);
           }
         }
       }
@@ -277,4 +295,15 @@ function mapSyntaxNodeToTypeTree(
 
 function notUndefined<T>(x: T | undefined): x is T {
   return x !== undefined;
+}
+
+function curryFunction(params: string[], body: Expression): Expression {
+  if (params.length !== 0) {
+    const head = params.slice(0, 1)[0];
+    const rest = params.slice(1, params.length);
+
+    return func(head, curryFunction(rest, body));
+  } else {
+    return func(params[0], body);
+  }
 }
