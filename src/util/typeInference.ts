@@ -259,4 +259,4 @@ function applySubstToCtx(subst: Substitution, ctx: Context): Context {
   return newContext;
 }
 
-export { typeToString, infer, Expression, Type };
+export { typeToString, infer, Expression, Type, EFunc };

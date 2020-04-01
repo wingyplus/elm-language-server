@@ -1,14 +1,15 @@
-import { infer, typeToString, Expression, Type } from "./typeInference";
+import { infer, typeToString, Expression, Type, EFunc } from "./typeInference";
 import * as Path from "path";
 import Parser, { SyntaxNode } from "web-tree-sitter";
 
 const initialEnv = {
-  true: tnamed("Bool"),
-  false: tnamed("Bool"),
+  True: tnamed("Bool"),
+  False: tnamed("Bool"),
+  String: tnamed("String"),
   "!": tfunc(tnamed("Bool"), tnamed("Bool")),
   "&&": tfunc(tnamed("Bool"), tnamed("Bool"), tnamed("Bool")),
   "||": tfunc(tnamed("Bool"), tnamed("Bool"), tnamed("Bool")),
-  "==": tfunc(tv("A"), tv("A"), tv("Bool")),
+  "==": tfunc(tvar("A"), tvar("A"), tvar("Bool")),
   "+": tfunc(tnamed("Int"), tnamed("Int"), tnamed("Int")),
 };
 
@@ -25,6 +26,7 @@ beforeAll(async () => {
 
 describe("test type inference", () => {
   test("simple int", () => {
+    const expr = call("+", int(1), int(2));
     expect(
       typeToString(
         infer(
@@ -32,13 +34,27 @@ describe("test type inference", () => {
             next: 0,
             env: initialEnv,
           },
-          call("+", int(1), int(2)),
+          expr,
         )[0],
       ),
     ).toEqual("Int");
-    /**
-     * Should output "Int"
-     */
+  });
+
+  test("simple function", () => {
+    const tree = parser.parse(`func = 5 + 6`);
+
+    const mapped = mapSyntaxNodeToTypeTree(tree.rootNode);
+    if (!mapped) throw new Error("Mapping failed");
+
+    const inferred = infer(
+      {
+        next: 0,
+        env: initialEnv,
+      },
+      mapped,
+    );
+    const inferredToString = typeToString(inferred[0]);
+    expect(inferredToString).toEqual("Int");
   });
 
   test("simple int", () => {
@@ -59,31 +75,23 @@ describe("test type inference", () => {
         )[0],
       ),
     ).toEqual("Int");
-    /**
-     * Should output "Int"
-     */
   });
 
   test("simple string", () => {
-    const tree = parser.parse('"bla"');
+    const tree = parser.parse(`"bla"`);
 
     const mapped = mapSyntaxNodeToTypeTree(tree.rootNode);
-    if (!mapped) return;
+    if (!mapped) throw new Error("Mapping failed");
 
-    expect(
-      typeToString(
-        infer(
-          {
-            next: 0,
-            env: initialEnv,
-          },
-          mapped,
-        )[0],
-      ),
-    ).toEqual("Int");
-    /**
-     * Should output "Int"
-     */
+    const inferred = infer(
+      {
+        next: 0,
+        env: initialEnv,
+      },
+      mapped,
+    );
+    const inferredToString = typeToString(inferred[0]);
+    expect(inferredToString).toEqual("String");
   });
 
   // test("mismatch", () => {
@@ -151,7 +159,7 @@ function call(
   f: Expression | string,
   ..._args: (Expression | string)[]
 ): Expression {
-  const args = _args.map(a => (typeof a === "string" ? v(a) : a));
+  const args = _args.map((a) => (typeof a === "string" ? v(a) : a));
   return args.reduce(
     (func, arg) => ({
       nodeType: "Call",
@@ -207,7 +215,7 @@ function tnamed(name: string): Type {
     name,
   };
 }
-function tv(name: string): Type {
+function tvar(name: string): Type {
   return {
     nodeType: "Var",
     name,
@@ -222,11 +230,40 @@ function tfunc(...types: Type[]): Type {
 }
 
 function mapSyntaxNodeToTypeTree(
-  node: SyntaxNode | null,
+  node: SyntaxNode | null | undefined,
 ): Expression | undefined {
   if (!node) return;
 
   switch (node.type) {
+    case "value_declaration":
+      const body = mapSyntaxNodeToTypeTree(
+        node.namedChildren[node.namedChildren.length - 1],
+      );
+
+      const eqNodeIndex = node.namedChildren.findIndex((a) => a.type === "eq");
+
+      if (body) {
+        if (eqNodeIndex === 1) {
+          return e(body);
+        } else {
+          const params = node.namedChildren.splice(1, eqNodeIndex);
+          if (params) {
+            //todo [0] is not correct
+            return func(params[0].text, body);
+          }
+        }
+      }
+      break;
+
+    case "bin_op_expr":
+      const parameter = node.children
+        .map((a) => mapSyntaxNodeToTypeTree(a))
+        .filter(notUndefined);
+      if (parameter) {
+        return call("+", ...parameter);
+      }
+      break;
+
     case "number_constant_expr":
       return int((node.text as unknown) as number);
 
@@ -236,4 +273,8 @@ function mapSyntaxNodeToTypeTree(
     default:
       return mapSyntaxNodeToTypeTree(node.firstNamedChild);
   }
+}
+
+function notUndefined<T>(x: T | undefined): x is T {
+  return x !== undefined;
 }
