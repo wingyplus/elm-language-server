@@ -275,7 +275,7 @@ export class ElmMakeDiagnostics {
 
           matches
             .filter((_, groupIndex) => groupIndex === 1)
-            .forEach((match, _) => {
+            .forEach((match) => {
               result.push(this.createQuickFix(uri, match, diagnostic));
             });
         }
@@ -393,7 +393,7 @@ export class ElmMakeDiagnostics {
   ): Promise<IElmIssue[]> {
     const settings = await this.settings.getClientSettings();
 
-    return new Promise(async (resolve, reject) => {
+    return new Promise(async (resolve) => {
       const relativePathToFile = path.relative(cwd, filename);
       const argsMake = [
         "make",

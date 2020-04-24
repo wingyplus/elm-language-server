@@ -89,7 +89,7 @@ export class ElmWorkspace {
       const elmJson = require(pathToElmJson);
       const type = elmJson.type;
       if (type === "application") {
-        elmJson["source-directories"].forEach(async (folder: string) => {
+        elmJson["source-directories"].forEach((folder: string) => {
           this.elmFolders.push({
             maintainerAndPackageName: undefined,
             uri: path.resolve(this.rootPath.fsPath, folder),
